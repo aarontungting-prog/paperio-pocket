@@ -207,7 +207,7 @@ if(modelContext?.registerTool){const controller=new AbortController();window.add
 
 let connecting=false;
 function resetOnlinePanels(){onlineLobby=null;$('online-connect-panel').hidden=false;$('online-lobby-panel').hidden=true;$('online-status').textContent='房主可以在房間內加入最多 7 個 AI。';}
-function leaveOnline(){if(onlineSession){onlineSession.leave();onlineSession=null;}resetOnlinePanels();if($('online-dialog').open)$('online-dialog').close();}
+function leaveOnline(){if(game?.online){game.leave();game=null;$('game-screen').hidden=true;$('lobby').hidden=false;}if(onlineSession){onlineSession.leave();onlineSession=null;}resetOnlinePanels();if($('online-dialog').open)$('online-dialog').close();}
 function renderOnlineLobby(info){
  onlineLobby=info;$('online-connect-panel').hidden=true;$('online-lobby-panel').hidden=false;
  const privateRoom=true,count=info.players.length,humanCount=info.players.filter(p=>!p.ai).length;
