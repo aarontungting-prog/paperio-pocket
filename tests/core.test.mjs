@@ -30,7 +30,8 @@ test('daily missions reset at Taiwan midnight without deleting wallet or lifetim
  const s=cleanState({coins:1234,stats:{captures:77},claimed:['first']});assert.equal(s.daily.stats.captures,0);recordDaily(s,{captures:1});assert.ok(claim(s,'first'));const coins=s.coins;
  const next=Date.parse(s.daily.date+'T16:00:00Z');ensureDaily(s,next);assert.equal(s.coins,coins);assert.equal(s.stats.captures,77);assert.equal(s.daily.stats.captures,0);assert.deepEqual(s.daily.claimed,[]);assert.equal(dayKey(Date.parse('2026-09-13T15:59:59Z')),'2026-09-13');assert.equal(dayKey(Date.parse('2026-09-13T16:00:00Z')),'2026-09-14');
 });
-test('multiplayer human death does not stop other players',()=>{const g=cleanArena();g.options.multiplayer=true;const other=g.spawn(32,true);assert.ok(other);g.kill(g.player,other);assert.equal(g.over,false);assert.ok(other.alive);assert.ok(g.drain().some(e=>e.type==='end'&&e.playerId===1));});
+test('multiplayer human death lets the last player win immediately',()=>{const g=cleanArena();g.options.multiplayer=true;const other=g.spawn(32,true);assert.ok(other);g.kill(g.player,other);assert.equal(g.over,true);assert.ok(other.alive);assert.ok(g.drain().some(e=>e.type==='end'&&e.reason==='win'));});
 test('normal movement speed is 140 world units per second',()=>{const g=cleanArena(),p=g.player;g.started=true;const x=p.x;p.angle=p.targetAngle=0;g.tick(1/60);assert.ok(Math.abs(p.x-x-140/60)<1e-8);});
 test('taking the last opponents land also completes world conquest',()=>{const g=cleanArena(),p=g.player;for(let i=0;i<g.grid.length;i++)if(g.mask[i])g.assign(i,i%2?1:2);const rival={id:2,alive:true,trail:[],trailCells:[],name:'最後對手',skin:SKINS[1]};g.entities.push(rival);g.kill(rival,p);assert.equal(g.percent(p),100);assert.equal(g.peak,100);assert.ok(g.drain().some(e=>e.type==='end'&&e.reason==='win'));});
+
 

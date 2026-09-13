@@ -59,6 +59,7 @@
     <div id="kill-feed" class="kill-feed" aria-live="polite"></div>
    </div>
    <div id="start-hint" class="start-hint"><span class="gesture-ring"><span data-icon="hand"></span></span><b><span class="touch-copy">滑動開始</span><span class="desktop-copy">移動滑鼠或按方向鍵開始</span></b><p>離開領地畫圈，再連回自己的顏色</p></div>
+   <div id="spectator-controls" class="spectator-controls" hidden><b>觀戰模式</b><span id="spectator-target">觀看玩家</span><div><button id="spectator-prev" class="button secondary" aria-label="上一位玩家">‹</button><button id="spectator-next" class="button secondary" aria-label="下一位玩家">›</button></div><button id="spectator-room" class="button yellow">回到房間</button></div>
    <div id="joystick" class="joystick" hidden><div id="joystick-knob"></div></div>
   </section>
  </main>
@@ -95,14 +96,15 @@
  <div id="rotate-prompt"><span data-icon="rotate"></span><b>轉直，開始圈地！</b><p>手機採直向遊玩</p></div>
  <dialog id="online-dialog" class="panel"><header class="panel-header"><h2>多人連線</h2><button class="close-btn" data-close aria-label="關閉多人連線">×</button></header><div class="panel-body">
  <div id="online-connect-panel">
-  <p>快速匹配只會等待真人玩家；私人房間會先進入大廳，最多 8 位玩家，至少 2 位即可開始。</p>
+  <p>多人遊玩使用房間號碼；建立房間後可邀請朋友加入，最多 8 個真人與 AI 名額。</p>
   <label class="field-label" for="server-url">連線伺服器</label><input id="server-url" class="name-input" placeholder="尚未設定多人伺服器" autocomplete="url">
-  <div class="online-actions"><button id="online-match" class="button yellow full">快速匹配</button><button id="online-create" class="button secondary full">建立私人房間</button></div>
-  <label class="field-label" for="room-code">房間號碼</label><input id="room-code" class="name-input" maxlength="32" autocomplete="off" placeholder="貼上朋友分享的房號"><button id="online-join" class="button secondary full">加入房間</button><p id="online-status" role="status">多人對戰不會加入 AI；單人地圖的 AI 數量仍由地圖固定。</p>
+  <div class="online-actions"><button id="online-create" class="button yellow full">建立房間</button></div>
+  <label class="field-label" for="room-code">房間號碼</label><input id="room-code" class="name-input" maxlength="32" autocomplete="off" placeholder="貼上朋友分享的房號"><button id="online-join" class="button secondary full">加入房間</button><p id="online-status" role="status">房主可以在房間內加入最多 7 個 AI。</p>
  </div>
  <div id="online-lobby-panel" class="online-lobby" hidden>
-  <p id="online-lobby-title"><b>房間大廳</b></p><p id="online-lobby-status" role="status">正在匹配真人玩家…</p>
+  <p id="online-lobby-title"><b>房間大廳</b></p><p id="online-lobby-status" role="status">等待玩家加入…</p>
   <div class="online-room-code"><span>房間號碼</span><strong id="online-room-code">—</strong><button id="online-copy" class="button secondary">複製</button></div>
+  <div class="online-ai-picker"><span>AI 對手</span><button id="online-ai-minus" class="button secondary" aria-label="減少 AI">−</button><strong id="online-ai-count">0</strong><button id="online-ai-plus" class="button secondary" aria-label="增加 AI">＋</button></div>
   <div id="online-players" class="online-players" aria-live="polite"></div>
   <div class="online-lobby-actions"><button id="online-ready" class="button secondary">準備</button><button id="online-start" class="button yellow" disabled>房主開始遊戲</button><button id="online-leave" class="button secondary">離開房間</button></div>
  </div>
