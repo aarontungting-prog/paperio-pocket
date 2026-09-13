@@ -36,7 +36,7 @@
     </div>
     <canvas id="lobby-preview" width="840" height="650" aria-label="目前裝備的造型與地圖"></canvas>
     <div class="loadout"><span id="skin-name">夏日西瓜</span><button id="change-skin" aria-label="更換造型"><span data-icon="edit"></span></button></div>
-    <button id="multiplayer-btn" class="button secondary">多人連線 · 匹配 / 房間</button><p class="control-hint"><span class="touch-copy">按開始，在畫面任意位置滑動轉向</span><span class="desktop-copy">滑鼠移動 · WASD / 方向鍵轉向</span></p>
+    <button id="multiplayer-btn" class="button secondary">多人連線 · 房間</button><p class="control-hint"><span class="touch-copy">按開始，在畫面任意位置滑動轉向</span><span class="desktop-copy">滑鼠移動 · WASD / 方向鍵轉向</span></p>
    </div>
    <nav class="bottom-dock" aria-label="遊戲選單">
     <button id="shop-btn"><span data-icon="shop"></span><b>商店</b></button>
@@ -104,7 +104,7 @@
  <div id="online-lobby-panel" class="online-lobby" hidden>
   <p id="online-lobby-title"><b>房間大廳</b></p><p id="online-lobby-status" role="status">等待玩家加入…</p>
   <div class="online-room-code"><span>房間號碼</span><strong id="online-room-code">—</strong><button id="online-copy" class="button secondary">複製</button></div>
-  <div class="online-ai-picker"><span>AI 對手</span><button id="online-ai-minus" class="button secondary" aria-label="減少 AI">−</button><strong id="online-ai-count">0</strong><button id="online-ai-plus" class="button secondary" aria-label="增加 AI">＋</button></div>
+  <div id="online-ai-picker" class="online-ai-picker"><span>AI 對手</span><button id="online-ai-minus" class="button secondary" aria-label="減少 AI">−</button><strong id="online-ai-count">0</strong><button id="online-ai-plus" class="button secondary" aria-label="增加 AI">＋</button></div>
   <div id="online-players" class="online-players" aria-live="polite"></div>
   <div class="online-lobby-actions"><button id="online-ready" class="button secondary">準備</button><button id="online-start" class="button yellow" disabled>房主開始遊戲</button><button id="online-leave" class="button secondary">離開房間</button></div>
  </div>
