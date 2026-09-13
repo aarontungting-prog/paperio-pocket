@@ -39,7 +39,7 @@ function hydrate(root=document){root.querySelectorAll('[data-icon]').forEach(el=
 hydrate();
 let storageOK=true,raw;
 try{raw=JSON.parse(localStorage.getItem(SAVE_KEY)||'{}');}catch{raw={};}
-let state=cleanState(raw),game=null,renderer=new Renderer($('game-canvas'),$('minimap')),category='skins',selectedItem=null,selectedKind='skins',toastTimer,feedTimer,resultTimer,beforeBest=0,lastHud=0,lastPreview=0,finished=false,leaderKey='';
+let state=cleanState(raw),game=null,renderer=new Renderer($('game-canvas'),$('minimap')),category='skins',selectedItem=null,selectedKind='skins',toastTimer,feedTimer,resultTimer,beforeBest=0,lastHud=0,lastPreview=0,finished=false,leaderKey='',onlineSession=null,onlineLobby=null;
 let audioContext=null,pointer=null,keys=new Set(),lastTime=performance.now(),accumulator=0;
 function save(){saveCloud(state,message=>$('cloud-status').textContent=message);try{localStorage.setItem(SAVE_KEY,JSON.stringify(state));storageOK=true;}catch{if(storageOK)toast('目前瀏覽器無法儲存進度，請確認未封鎖網站儲存空間。');storageOK=false;}}
 function toast(message){$('toast').textContent=message;$('toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('show'),3200);}
@@ -51,13 +51,12 @@ function sound(type){
 function vibrate(pattern){if(state.settings.haptic&&navigator.vibrate)navigator.vibrate(pattern);}
 function show(id){if(!$ (id).open)$(id).showModal();}
 function close(id){$(id).close();}
-all('[data-close]').forEach(b=>b.addEventListener('click',()=>b.closest('dialog').close()));
+all('[data-close]').forEach(b=>b.addEventListener('click',()=>{const d=b.closest('dialog');if(d?.id==='online-dialog'&&onlineSession){leaveOnline();return;}d.close();}));
 all('dialog').forEach(d=>{if(['pause-dialog','result-dialog'].includes(d.id))return;d.addEventListener('click',e=>{if(e.target===d){let r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)d.close();}});});
 function paintThumb(canvas,skin,hat='none',onlyHat=false){let c=canvas.getContext('2d');c.clearRect(0,0,canvas.width,canvas.height);c.save();c.translate(canvas.width/2,canvas.height*.59);if(onlyHat){c.globalAlpha=.35;drawHead(c,getSkin('aqua'),canvas.width*.24,0);c.globalAlpha=1;c.scale(canvas.width/112,canvas.width/112);drawHat(c,hat);}else drawHead(c,skin,canvas.width*.27,-.25,hat);c.restore();}
 function refreshBalances(){ensureDaily(state);all('.coin-balance').forEach(e=>e.textContent=fmt(state.coins));all('.gem-balance').forEach(e=>e.textContent=fmt(state.gems));$('mission-dot').hidden=!MISSIONS.some(m=>!state.daily.claimed.includes(m.id)&&state.daily.stats[m.key]>=m.goal);}
 function refreshLobby(){
  const map=getMap(state.map);$('map-name').textContent=map.name;$('map-symbol').textContent=map.symbol;$('map-best').textContent=(state.mapBests[map.id]||0).toFixed(1).replace('.0','')+'%';$('map-progress-fill').style.width=Math.max(3,state.mapBests[map.id]||0)+'%';$('skin-name').textContent=getSkin(state.skin).name;
- $('ai-summary').textContent=getMap(state.map).ai?`${getMap(state.map).ai} 位 AI 對手`:'自由圈地 · 沒有對手';$('difficulty-summary').textContent=getMap(state.map).ai?difficultyNames[state.settings.difficulty]:'單人';
  paintThumb($('profile-avatar'),getSkin(state.skin),state.hat);refreshBalances();
 }
 function refreshSettings(){
@@ -65,7 +64,7 @@ function refreshSettings(){
  for(const k of ['respawn','sound','haptic'])$(k+'-toggle').checked=state.settings[k];
 }
 function openSettings(){refreshSettings();show('settings-dialog');}
-for(const id of ['settings-btn','match-settings-btn'])$(id).addEventListener('click',openSettings);
+for(const id of ['settings-btn'])$(id).addEventListener('click',openSettings);
 $('player-name').addEventListener('change',e=>{state.settings.name=e.target.value.trim().slice(0,14)||'圈地小高手';e.target.value=state.settings.name;save();});
 all('[data-difficulty]').forEach(b=>b.addEventListener('click',()=>{state.settings.difficulty=b.dataset.difficulty;save();refreshSettings();refreshLobby();}));
 for(const k of ['respawn','sound','haptic'])$(k+'-toggle').addEventListener('change',e=>{state.settings[k]=e.target.checked;save();if(k==='sound'&&state.settings.sound)sound('click');});
@@ -190,17 +189,37 @@ if(modelContext?.registerTool){const controller=new AbortController();window.add
 }
 
 let connecting=false;
-$('multiplayer-btn').addEventListener('click',()=>{if(!connecting)show('online-dialog');});
-for(const mode of ['match','create','join'])$('online-'+mode).addEventListener('click',async()=>{
- if(connecting)return;connecting=true;all('#online-dialog button').forEach(b=>b.disabled=true);$('online-status').textContent='連線中…';
+function resetOnlinePanels(){onlineLobby=null;$('online-connect-panel').hidden=false;$('online-lobby-panel').hidden=true;$('online-status').textContent='多人對戰不會加入 AI；單人地圖的 AI 數量仍由地圖固定。';}
+function leaveOnline(){if(onlineSession){onlineSession.leave();onlineSession=null;}resetOnlinePanels();if($('online-dialog').open)$('online-dialog').close();}
+function renderOnlineLobby(info){
+ onlineLobby=info;$('online-connect-panel').hidden=true;$('online-lobby-panel').hidden=false;
+ const privateRoom=Boolean(info.private),count=info.players.length;
+ $('online-lobby-title').innerHTML=privateRoom?'<b>私人房間大廳</b>':'<b>快速匹配</b>';
+ $('online-lobby-status').textContent=info.started?'玩家已到齊，正在載入遊戲…':privateRoom?`已加入 ${count} / 8 位玩家；所有人準備後房主才能開始。`:`正在匹配真人玩家… ${count} / 8`;
+ $('online-room-code').textContent=info.roomId||'—';
+ $('online-players').innerHTML=info.players.map(p=>`<div class="online-player"><span class="online-player-dot" style="--player-color:${p.skin?.color||'#4bb8ef'}"></span><b>${esc(p.name)}${p.host?'（房主）':''}</b><small>${p.ready?'已準備':'等待準備'}</small></div>`).join('');
+ const me=info.players.find(p=>p.sessionId===info.selfSessionId),host=info.selfSessionId===info.hostSessionId,ready=Boolean(me?.ready);
+ $('online-ready').hidden=!privateRoom;$('online-ready').disabled=!privateRoom;$('online-ready').textContent=ready?'取消準備':'準備';
+ $('online-start').hidden=!privateRoom;$('online-start').disabled=!(privateRoom&&host&&!info.started&&count>=2&&info.players.every(p=>p.ready));
+ $('online-copy').disabled=!info.roomId;
+}
+async function beginOnline(mode){
+ if(connecting)return;connecting=true;all('#online-connect-panel button').forEach(b=>b.disabled=true);$('online-status').textContent=mode==='match'?'正在匹配真人玩家…':'正在進入房間…';
  try{
-  const endpoint=$('server-url').value.trim();if(!endpoint)throw Error('多人伺服器尚未完成部署，暫時請使用單人遊戲。');localStorage.setItem('paperio-server',endpoint);
-  const next=await connectArena(mode,{endpoint,code:$('room-code').value.trim(),map:state.map,...state.settings,skin:state.skin,hat:state.hat},()=>{if(game?.online){processEvents();finish('disconnect');}});
-  state.map=next.options.map;startGame(next);toast('已加入房間 '+next.roomId);
+  const endpoint=$('server-url').value.trim();if(!endpoint)throw Error('多人伺服器尚未完成部署');localStorage.setItem('paperio-server',endpoint);
+  const session=await connectArena(mode,{endpoint,code:$('room-code').value.trim(),map:state.map,...state.settings,skin:state.skin,hat:state.hat},(info)=>renderOnlineLobby(info),()=>{if(game?.online){processEvents();finish('disconnect');}else{$('online-lobby-status').textContent='與房間的連線中斷';onlineSession=null;resetOnlinePanels();}});
+  onlineSession=session;renderOnlineLobby(session.lobby);
+  session.startPromise.then(next=>{if(!next||!onlineSession)return;state.map=next.options.map;onlineSession=null;startGame(next);toast('已加入房間 '+next.roomId);}).catch(error=>{if($('online-dialog').open)$('online-lobby-status').textContent='無法開始：'+(error.message||'房間已關閉');});
  }catch(error){$('online-status').textContent='無法連線：'+(error.message||'請檢查伺服器網址與房號');}
- finally{connecting=false;all('#online-dialog button').forEach(b=>b.disabled=false);}
-});
-$('online-dialog').addEventListener('cancel',e=>{if(connecting)e.preventDefault();});
+ finally{connecting=false;all('#online-connect-panel button').forEach(b=>b.disabled=false);}
+}
+$('multiplayer-btn').addEventListener('click',()=>{if(!connecting){resetOnlinePanels();show('online-dialog');}});
+for(const mode of ['match','create','join'])$('online-'+mode).addEventListener('click',()=>beginOnline(mode));
+$('online-ready').addEventListener('click',()=>{if(!onlineSession||!onlineLobby)return;const me=onlineLobby.players.find(p=>p.sessionId===onlineLobby.selfSessionId);onlineSession.ready(!me?.ready);});
+$('online-start').addEventListener('click',()=>onlineSession?.start());
+$('online-leave').addEventListener('click',leaveOnline);
+$('online-copy').addEventListener('click',async()=>{if(!onlineLobby?.roomId)return;try{await navigator.clipboard.writeText(onlineLobby.roomId);toast('房號已複製');}catch{toast('請長按房號複製：'+onlineLobby.roomId);}});
+$('online-dialog').addEventListener('cancel',e=>{if(connecting)e.preventDefault();else if(onlineSession){e.preventDefault();leaveOnline();}});
 $('server-url').value=defaultServerURL(location)||localStorage.getItem('paperio-server')||'';
 $('cloud-connect').addEventListener('click',async()=>{
  if(game||connecting)return;connecting=true;const buttons=all('button');const disabled=buttons.map(b=>b.disabled);buttons.forEach(b=>b.disabled=true);$('cloud-status').textContent='正在連接 Firebase…';
@@ -210,4 +229,5 @@ $('cloud-connect').addEventListener('click',async()=>{
 });
 setInterval(()=>{const date=state.daily.date;ensureDaily(state);if(date!==state.daily.date){save();refreshBalances();if($('missions-dialog').open)renderMissions();}},10000);
 if(localStorage.getItem('paperio-cloud-enabled')==='1')$('cloud-connect').click();
+
 

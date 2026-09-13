@@ -7,7 +7,8 @@ const angleDelta=(a,b)=>Math.atan2(Math.sin(b-a),Math.cos(b-a));
 export class Game {
  constructor(options={}){
   this.options={ai:12,difficulty:'normal',respawn:true,map:'usa',skin:'melon',hat:'none',name:'你',...options};
-  this.options.ai=getMap(this.options.map).ai;
+  // Multiplayer rooms are human-only. Single-player keeps each map's fixed AI count.
+  this.options.ai=this.options.multiplayer?0:getMap(this.options.map).ai;
   this.random=options.random||Math.random;this.grid=new Uint8Array(GRID*GRID);this.mask=new Uint8Array(GRID*GRID);
   this.trails=new Uint8Array(GRID*GRID);this.ages=new Float32Array(GRID*GRID);this.counts=new Int32Array(64);
   this.dirty=new Set();this.entities=[];this.events=[];this.time=0;this.over=false;this.started=false;this.paused=false;
@@ -108,7 +109,10 @@ export class Game {
   this.checkVictory(e);
  }
  checkVictory(e){
-  if(e.human&&this.percent(e)>=99.0&&!this.over){
+  // A rounded coastline can leave a handful of raster cells unreachable by a
+  // final loop. Once the player has reached the last half percent, award those
+  // cells too so every completed match can actually finish at 100%.
+  if(e.human&&this.percent(e)>=99.5&&!this.over){
    for(let i=0;i<this.grid.length;i++)if(this.mask[i])this.assign(i,e.id);
    this.peak=100;this.over=true;this.events.push({type:'reward',playerId:e.id,coins:500,best:100});this.earned+=500;this.events.push({type:'end',playerId:e.id,reason:'win'});
   }
@@ -255,3 +259,4 @@ export class Game {
  ranking(){return this.entities.filter(e=>e.alive).sort((a,b)=>this.counts[b.id]-this.counts[a.id]);}
  drain(){return this.events.splice(0);}
 }
+
