@@ -218,7 +218,7 @@ function renderOnlineLobby(info){
  const me=info.players.find(p=>p.sessionId===info.selfSessionId),host=info.selfSessionId===info.hostSessionId,ready=Boolean(me?.ready);
  $('online-ready').hidden=!privateRoom;$('online-ready').disabled=!privateRoom;$('online-ready').textContent=ready?'取消準備':'準備';
  $('online-start').hidden=!privateRoom;$('online-start').disabled=!(host&&!info.started&&count>=2&&info.players.filter(p=>!p.ai).every(p=>p.ready));
- $('online-ai-picker').hidden=!host;$('online-ai-count').textContent=info.ai||0;$('online-ai-minus').disabled=!host||!info.ai;$('online-ai-plus').disabled=!host||count>=8;
+ const aiPicker=$('online-ai-picker');if(aiPicker)aiPicker.hidden=!host;$('online-ai-count').textContent=info.ai||0;$('online-ai-minus').disabled=!host||!info.ai;$('online-ai-plus').disabled=!host||count>=8;
  $('online-copy').disabled=!info.roomId;
 }
 function watchOnlineStart(session){
