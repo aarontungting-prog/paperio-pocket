@@ -1,3 +1,3 @@
 # Paper.io Pocket
 
-Colyseus multiplayer server and web client.
+Colyseus multiplayer Paper.io game with Firebase-backed player data.

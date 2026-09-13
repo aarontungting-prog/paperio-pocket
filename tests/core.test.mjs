@@ -1,0 +1,36 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {Game,GRID,CELL} from '../dist/engine.mjs';
+import {SKINS,MAPS} from '../dist/catalog.mjs';
+import {cleanState,buy,claim,ensureDaily,recordDaily,dayKey} from '../dist/state.mjs';
+const seeded=(seed=42)=>()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296};
+function cleanArena(){let g=new Game({ai:0,map:'square',random:seeded()});g.entities=[g.player];g.options.respawn=false;g.grid.fill(0);g.counts.fill(0);g.trails.fill(0);return g;}
+function rect(g,id,x0,y0,x1,y1){for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)g.assign(y*GRID+x,id);}
+function trail(g,e,points){e.trailCells=[];e.trail=[];e.outside=true;for(let j=0;j<points.length-1;j++){let a=points[j],b=points[j+1],d=Math.max(Math.abs(a[0]-b[0]),Math.abs(a[1]-b[1]));for(let k=0;k<=d;k++){let x=Math.round(a[0]+(b[0]-a[0])*k/d),y=Math.round(a[1]+(b[1]-a[1])*k/d),i=y*GRID+x;g.trails[i]=e.id;e.trailCells.push(i);e.trail.push({x:(x+.5)*CELL,y:(y+.5)*CELL});}}}
+test('every map uses its fixed AI count and ignores custom counts',()=>{for(const map of MAPS)for(const ai of [0,30])for(const seed of [2,19,42]){let g=new Game({ai,map:map.id,random:seeded(seed)});assert.equal(g.entities.length-1,map.ai,map.id);assert.ok(g.entities.every(e=>g.counts[e.id]>0&&g.valid(e.x,e.y)));}});
+test('closing a loop captures its interior and steals enemy land without a convex hull',()=>{
+ let g=cleanArena(),e=g.player;rect(g,1,100,100,110,110);rect(g,2,119,90,124,94);g.entities.push({id:2,alive:true,skin:SKINS[1],name:'Rival',trail:[],trailCells:[],x:120*CELL,y:92*CELL});
+ trail(g,e,[[105,100],[105,85],[130,85],[130,105],[110,105]]);let before=g.counts[1];g.capture(e);
+ assert.equal(g.grid[92*GRID+120],1);assert.equal(g.grid[90*GRID+115],1);assert.equal(g.grid[115*GRID+140],0,'outside remains unclaimed');assert.equal(g.grid[97*GRID+102],0,'concave notch is not filled');assert.ok(g.counts[1]>before+350);assert.equal(g.counts[2],0);assert.equal(g.trails.some(Boolean),false);assert.equal(e.kills,1);
+});
+test('a narrow trail out and back does not fill the arena',()=>{let g=cleanArena(),e=g.player;rect(g,1,100,100,110,110);trail(g,e,[[105,100],[105,91],[106,91],[106,100]]);g.capture(e);assert.ok(g.counts[1]<150);});
+test('crossing a rival trail eliminates the trail owner and transfers all their territory',()=>{let g=cleanArena(),p=g.player;rect(g,1,100,100,110,110);rect(g,2,140,100,145,105);let i=105*GRID+105;let enemy={id:2,name:'Rival',alive:true,skin:SKINS[1],trail:[],trailCells:[i],x:140*CELL,y:105*CELL};g.entities.push(enemy);g.trails[i]=2;p.x=105.5*CELL;p.y=105.5*CELL;p.angle=0;p.targetAngle=0;g.started=true;g.tick(1/60);assert.equal(enemy.alive,false);assert.equal(p.alive,true);assert.equal(p.kills,1);assert.equal(g.counts[2],0);assert.equal(g.grid[100*GRID+140],1);});
+test('old own-tail collisions are harmless',()=>{const g=cleanArena(),p=g.player;g.started=true;p.x=105.5*CELL;p.y=105.5*CELL;p.angle=0;p.targetAngle=0;p.travel=200;g.trails[g.index(p.x,p.y)]=1;g.ages[g.index(p.x,p.y)]=0;g.tick(1/60);assert.equal(g.over,false);assert.ok(p.alive);});
+test('walls slide and accelerate instead of killing',()=>{const g=cleanArena(),p=g.player;g.started=true;p.y=1024;let x=1024;while(g.movementValid(x+1,p.y))x++;p.x=x;p.angle=0;p.targetAngle=0;const before={x:p.x,y:p.y};g.tick(1/60);assert.ok(p.alive&&g.movementValid(p.x,p.y));assert.ok(p.wallBoost);assert.ok(Math.hypot(p.x-before.x,p.y-before.y)>140/60);for(let i=0;i<600;i++)g.tick(1/60);assert.ok(p.alive&&g.movementValid(p.x,p.y));});
+test('pause and input gate stop simulation',()=>{const g=new Game({ai:0});const p={x:g.player.x,y:g.player.y};g.tick(1);assert.deepEqual({x:g.player.x,y:g.player.y},p);g.started=true;g.paused=true;g.tick(1);assert.equal(g.time,0);assert.equal(g.entities.length,13);});
+test('two-minute strategic AI simulation expands, attacks, and keeps exact ownership accounting',()=>{
+ const g=new Game({ai:12,difficulty:'hard',random:seeded()});g.started=true;let attackFrames=0,captures=0;
+ for(let i=0;i<7200&&!g.over;i++){g.aim(g.player.angle+1);g.tick(1/60);for(const e of g.entities)if(e.state==='attack')attackFrames++;captures=Math.max(captures,g.entities.reduce((n,e)=>n+e.captures,0));g.drain();}
+ assert.ok(g.time>20);assert.ok(captures>10);assert.ok(attackFrames>0);let counts=new Int32Array(64);for(let i=0;i<g.grid.length;i++){if(g.grid[i])assert.ok(g.mask[i]);counts[g.grid[i]]++;}for(const e of g.entities){assert.equal(g.counts[e.id],counts[e.id]);assert.ok(Number.isFinite(e.x)&&Number.isFinite(e.y));}
+});
+test('shop purchases are permanent and equipping an owned item never charges twice',()=>{let s=cleanState(),item=SKINS.find(i=>i.id==='orange');assert.equal(buy(s,item).ok,true);assert.equal(s.coins,420);assert.equal(s.skin,'orange');buy(s,item);assert.equal(s.coins,420);assert.equal(s.ownedSkins.filter(id=>id==='orange').length,1);assert.equal(cleanState(JSON.parse(JSON.stringify(s))).skin,'orange');let gold=SKINS.find(i=>i.id==='gold');assert.equal(buy(s,gold).ok,false);assert.equal(s.gems,10);});
+test('mission rewards can be claimed exactly once and invalid saves recover safely',()=>{let s=cleanState();assert.equal(claim(s,'first'),false);recordDaily(s,{captures:1});assert.equal(claim(s,'first'),true);assert.equal(claim(s,'first'),false);assert.equal(s.coins,630);assert.equal(s.gems,10);let corrupt=cleanState({coins:-99,skin:'orange',ownedSkins:{},settings:{ai:1000},stats:{best:Infinity}});assert.equal(corrupt.coins,0);assert.equal(corrupt.skin,'melon');assert.equal(corrupt.settings.ai,undefined);assert.equal(corrupt.stats.best,0);});
+
+test('daily missions reset at Taiwan midnight without deleting wallet or lifetime stats',()=>{
+ const s=cleanState({coins:1234,stats:{captures:77},claimed:['first']});assert.equal(s.daily.stats.captures,0);recordDaily(s,{captures:1});assert.ok(claim(s,'first'));const coins=s.coins;
+ const next=Date.parse(s.daily.date+'T16:00:00Z');ensureDaily(s,next);assert.equal(s.coins,coins);assert.equal(s.stats.captures,77);assert.equal(s.daily.stats.captures,0);assert.deepEqual(s.daily.claimed,[]);assert.equal(dayKey(Date.parse('2026-09-13T15:59:59Z')),'2026-09-13');assert.equal(dayKey(Date.parse('2026-09-13T16:00:00Z')),'2026-09-14');
+});
+test('multiplayer human death does not stop other players',()=>{const g=cleanArena();g.options.multiplayer=true;const other=g.spawn(32,true);assert.ok(other);g.kill(g.player,other);assert.equal(g.over,false);assert.ok(other.alive);assert.ok(g.drain().some(e=>e.type==='end'&&e.playerId===1));});
+test('normal movement speed is 140 world units per second',()=>{const g=cleanArena(),p=g.player;g.started=true;const x=p.x;p.angle=p.targetAngle=0;g.tick(1/60);assert.ok(Math.abs(p.x-x-140/60)<1e-8);});
+test('taking the last opponents land also completes world conquest',()=>{const g=cleanArena(),p=g.player;for(let i=0;i<g.grid.length;i++)if(g.mask[i])g.assign(i,i%2?1:2);const rival={id:2,alive:true,trail:[],trailCells:[],name:'最後對手',skin:SKINS[1]};g.entities.push(rival);g.kill(rival,p);assert.equal(g.percent(p),100);assert.equal(g.peak,100);assert.ok(g.drain().some(e=>e.type==='end'&&e.reason==='win'));});
+

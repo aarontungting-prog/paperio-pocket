@@ -1,0 +1,15 @@
+# One free Node process: in-memory Colyseus rooms must stay on a single instance.
+services:
+  - type: web
+    name: paperio-pocket-server
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: "10000"
+      - key: NODE_ENV
+        value: production

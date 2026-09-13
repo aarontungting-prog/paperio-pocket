@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+ <meta name="theme-color" content="#08a9f2">
+ <meta name="apple-mobile-web-app-capable" content="yes">
+ <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+ <meta name="description" content="自己的圈地遊戲。多人房間與各地圖固定 AI 對手，收集 24 款造型、搭配帽子，征服 6 張地圖。手機直向與電腦皆可遊玩。">
+ <title>Paper.io 2 · 個人版</title>
+ <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230ba9f3'/%3E%3Cpath d='M15 14Q3 36 17 53L54 32Z' fill='%23ff3663' stroke='%2387ed25' stroke-width='6'/%3E%3Cpath d='M25 25l5 4-5 3M25 38l5 3-5 3M37 31l5 3-5 3' fill='%23371852'/%3E%3C/svg%3E">
+ <link rel="manifest" href="./manifest.webmanifest">
+ <link rel="apple-touch-icon" href="./icon-192.png">
+ <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+ <main id="app">
+  <section id="lobby" class="screen lobby" aria-label="遊戲主畫面">
+   <div class="ocean-glow"></div>
+   <header class="topbar">
+    <button class="avatar circle-button" id="profile-btn" aria-label="個人紀錄"><canvas id="profile-avatar" width="100" height="100"></canvas></button>
+    <button class="wallet" id="coins-btn" aria-label="金幣與商店"><span data-icon="coin"></span><b class="coin-balance">600</b></button>
+    <button class="wallet gems" id="gems-btn" aria-label="寶石與任務"><span data-icon="gem"></span><b class="gem-balance">10</b></button>
+    <button class="circle-button settings-btn" id="settings-btn" aria-label="遊戲設定"><span data-icon="settings"></span></button>
+   </header>
+   <div class="lobby-content">
+    <div class="game-logo" aria-label="Paper.io 2">paper<span>.io</span><sup>2</sup><small>個人版</small></div>
+    <div class="map-heading">
+     <button class="map-arrow" id="prev-map" aria-label="上一張地圖">‹</button>
+     <button class="map-info" id="map-info-btn" aria-label="選擇地圖">
+      <strong id="map-name">美國</strong>
+      <span class="map-progress"><span id="map-progress-fill"></span><b id="map-best">0%</b><span id="map-symbol">🇺🇸</span></span>
+      <small>最高佔領率</small>
+     </button>
+     <button class="map-arrow" id="next-map" aria-label="下一張地圖">›</button>
+    </div>
+    <canvas id="lobby-preview" width="840" height="650" aria-label="目前裝備的造型與地圖"></canvas>
+    <div class="loadout"><span id="skin-name">夏日西瓜</span><button id="change-skin" aria-label="更換造型"><span data-icon="edit"></span></button></div>
+    <button class="match-settings" id="match-settings-btn"><span data-icon="bot"></span><b id="ai-summary">12 位 AI 對手</b><span class="difficulty-label" id="difficulty-summary">標準</span><span data-icon="sliders"></span></button>
+    <button id="multiplayer-btn" class="button secondary">多人連線 · 匹配 / 房間</button><p class="control-hint"><span class="touch-copy">按開始，在畫面任意位置滑動轉向</span><span class="desktop-copy">滑鼠移動 · WASD / 方向鍵轉向</span></p>
+   </div>
+   <nav class="bottom-dock" aria-label="遊戲選單">
+    <button id="shop-btn"><span data-icon="shop"></span><b>商店</b></button>
+    <button id="wardrobe-btn"><span data-icon="skins"></span><b>造型</b></button>
+    <div class="play-slot"><button id="play-btn" class="play-button" aria-label="開始遊戲"><span data-icon="play"></span></button><strong>開始遊戲</strong></div>
+    <button id="maps-btn"><span data-icon="map"></span><b>地圖</b></button>
+    <button id="missions-btn"><span data-icon="trophy"></span><b>每日任務</b><i id="mission-dot" hidden></i></button>
+   </nav>
+  </section>
+  <section id="game-screen" class="screen game-screen" aria-label="圈地競技場" hidden>
+   <canvas id="game-canvas" aria-label="遊戲畫面，滑動或使用方向鍵控制角色"></canvas>
+   <div class="hud">
+    <div class="top-progress"><div id="territory-fill"></div><b id="territory-percent">0.00%</b><span data-icon="crown"></span></div>
+    <button id="pause-btn" class="circle-button" aria-label="暫停遊戲"><span data-icon="pause"></span></button>
+    <div id="room-badge" hidden></div><div class="game-stats"><span class="stat-pill"><span data-icon="skull"></span><b id="kill-count">0</b></span><span class="stat-pill"><span data-icon="coin"></span><b id="game-coins">0</b></span><span class="match-time" id="match-time">00:00</span></div>
+    <div id="leaderboard" class="leaderboard" aria-label="即時排行榜"></div>
+    <div class="mini-wrap"><canvas id="minimap" aria-label="小地圖"></canvas><span id="alive-count">13 位存活</span></div>
+    <div id="zone-status" class="zone-status"><span data-icon="shield"></span><b>安全領地</b></div>
+    <div id="capture-pop" class="capture-pop" aria-live="polite"></div>
+    <div id="kill-feed" class="kill-feed" aria-live="polite"></div>
+   </div>
+   <div id="start-hint" class="start-hint"><span class="gesture-ring"><span data-icon="hand"></span></span><b><span class="touch-copy">滑動開始</span><span class="desktop-copy">移動滑鼠或按方向鍵開始</span></b><p>離開領地畫圈，再連回自己的顏色</p></div>
+   <div id="joystick" class="joystick" hidden><div id="joystick-knob"></div></div>
+  </section>
+ </main>
+ <dialog id="settings-dialog" class="panel settings-panel">
+  <header class="panel-header"><h2>遊戲設定</h2><button class="close-btn" data-close aria-label="關閉設定">×</button></header>
+  <div class="panel-body">
+   <label class="field-label" for="player-name">玩家名稱</label><input id="player-name" class="name-input" maxlength="14" placeholder="輸入你的名字" autocomplete="off">
+   <p class="description">AI 數量由地圖固定配置，保留難度與補入設定。</p>
+   <button id="cloud-connect" class="button secondary full">連接 Firebase 雲端存檔</button><p id="cloud-status" class="description" role="status">目前使用本機存檔</p><h3>對手難度</h3><div class="segmented difficulty" role="group" aria-label="AI 難度"><button data-difficulty="easy">休閒</button><button data-difficulty="normal">標準</button><button data-difficulty="hard">高手</button></div><p id="difficulty-description" class="description"></p>
+   <label class="toggle-row"><span><b>對手淘汰後補入</b><small>關閉後，只保留本局原有的對手</small></span><input id="respawn-toggle" type="checkbox" role="switch"></label>
+   <label class="toggle-row"><span><b>遊戲音效</b></span><input id="sound-toggle" type="checkbox" role="switch"></label>
+   <label class="toggle-row"><span><b>震動回饋</b></span><input id="haptic-toggle" type="checkbox" role="switch"></label>
+   <button id="fullscreen-btn" class="button secondary full"><span data-icon="fullscreen"></span>全螢幕遊玩</button>
+   <details class="help"><summary>怎麼玩 / iPhone 全螢幕</summary><p>角色會持續前進。手機在畫面任意位置按住滑動；電腦用滑鼠、WASD 或方向鍵轉向。</p><p>離開自己的領地，畫圈後連回基地就能佔領。碰到對手尾巴可淘汰對方；自己的尾巴被對手切斷或失去全部領地會出局。踩自己的尾巴不會死；碰到地圖邊緣會貼牆並加速。擊殺會接收對方全部已著色領地。</p><p>iPhone 若無法隱藏瀏覽器工具列，可在 Safari 點「分享 → 加入主畫面」，再從主畫面開啟，使用直向全螢幕。</p><p>這是自製個人版。金幣、寶石與造型均由遊玩獲得，沒有廣告或現金付費。進度先存於目前瀏覽器。連接 Firebase 後自動同步至匿名帳號；清除網站資料將失去此匿名帳號的登入資格，請保留網站資料。</p></details>
+  </div><footer class="panel-footer"><button class="button yellow full" data-close>準備好了</button></footer>
+ </dialog>
+ <dialog id="shop-dialog" class="panel wide-panel">
+  <header class="panel-header"><h2 id="shop-title">造型商店</h2><div class="small-wallet"><span data-icon="coin"></span><b class="coin-balance"></b><span data-icon="gem"></span><b class="gem-balance"></b></div><button class="close-btn" data-close aria-label="關閉商店">×</button></header>
+  <div class="shop-controls"><div class="segmented" role="group" aria-label="商品種類"><button data-category="skins" class="active">造型 <small>24</small></button><button data-category="hats">帽子 <small>6</small></button></div><label class="owned-filter"><input id="owned-only" type="checkbox">只看已擁有</label></div>
+  <div class="panel-body shop-grid" id="shop-grid"></div>
+  <footer class="shop-note">圈地賺金幣 · 單局每 5 次圈地再得 1 寶石</footer>
+ </dialog>
+ <dialog id="item-dialog" class="panel item-panel">
+  <header class="panel-header"><h2 id="item-title">夏日西瓜</h2><button class="close-btn" data-close aria-label="關閉造型詳情">×</button></header>
+  <div class="item-stage"><canvas id="item-preview" width="440" height="340"></canvas><span id="item-rarity"></span></div>
+  <p id="item-description"></p><div class="item-footer"><button class="button yellow full" id="item-action"></button><p id="item-message" aria-live="polite"></p></div>
+ </dialog>
+ <dialog id="maps-dialog" class="panel wide-panel"><header class="panel-header"><h2>選擇地圖</h2><button class="close-btn" data-close aria-label="關閉地圖選擇">×</button></header><div id="map-grid" class="panel-body map-grid"></div><footer class="panel-footer"><button class="button yellow full" data-close>出發圈地</button></footer></dialog>
+ <dialog id="missions-dialog" class="panel"><header class="panel-header"><h2>每日任務</h2><button class="close-btn" data-close aria-label="關閉任務">×</button></header><p class="description">每日台灣時間 00:00 重置進度及領取資格。</p><div class="panel-body mission-list" id="mission-list"></div></dialog>
+ <dialog id="profile-dialog" class="panel"><header class="panel-header"><h2>我的紀錄</h2><button class="close-btn" data-close aria-label="關閉紀錄">×</button></header><div class="panel-body"><div id="profile-card" class="profile-card"></div><div id="profile-stats" class="profile-stats"></div><p class="save-note">進度已自動儲存在此裝置</p></div></dialog>
+ <dialog id="pause-dialog" class="panel pause-panel"><header class="panel-header"><h2>稍作休息</h2></header><div class="pause-art" data-icon="pause"></div><p>遊戲已暫停，對手也會等你。</p><div class="pause-actions"><button id="resume-btn" class="button yellow full"><span data-icon="play"></span>繼續遊戲</button><button id="quit-btn" class="button secondary full">結算並返回主畫面</button></div></dialog>
+ <dialog id="result-dialog" class="panel result-panel"><div class="result-crown" data-icon="trophy"></div><h2 id="result-title">這局圈得漂亮！</h2><p id="result-reason"></p><div class="result-score"><b id="result-percent">0.00</b><span>%</span><small>最高佔領率</small></div><span id="new-best" hidden>NEW BEST!</span><div id="result-stats" class="result-stats"></div><div class="result-reward"><span data-icon="coin"></span><b id="result-coins"></b><span>本局獲得</span></div><div class="pause-actions"><button id="again-btn" class="button yellow full"><span data-icon="play"></span>再玩一次</button><button id="home-btn" class="button secondary full">返回主畫面</button></div></dialog>
+ <div id="toast" role="status" aria-live="polite"></div>
+ <div id="rotate-prompt"><span data-icon="rotate"></span><b>轉直，開始圈地！</b><p>手機採直向遊玩</p></div>
+ <dialog id="online-dialog" class="panel"><header class="panel-header"><h2>多人連線</h2><button class="close-btn" data-close aria-label="關閉多人連線">×</button></header><div class="panel-body">
+ <p>匹配會依目前地圖、難度與補入設定尋找房間；建立房間後可分享房號，最多 8 位玩家。</p>
+ <label class="field-label" for="server-url">連線伺服器</label><input id="server-url" class="name-input" placeholder="尚未設定多人伺服器" autocomplete="url">
+ <div class="online-actions"><button id="online-match" class="button yellow full">快速匹配</button><button id="online-create" class="button secondary full">建立私人房間</button></div>
+ <label class="field-label" for="room-code">房間號碼</label><input id="room-code" class="name-input" maxlength="32" autocomplete="off" placeholder="貼上朋友分享的房號"><button id="online-join" class="button secondary full">加入房間</button><p id="online-status" role="status">建立者決定地圖與 AI 設定。連線對戰無法暫停。</p></div></dialog>
+ <noscript>此遊戲需要啟用 JavaScript 才能遊玩。</noscript>
+ <script type="module" src="./app.mjs"></script>
+</body>
+</html>
